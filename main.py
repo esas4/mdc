@@ -15,7 +15,7 @@ templates=Jinja2Templates(directory="templates")
 from io import BytesIO
 @app.get('/')
 async def index(request:Request):
-    return templates.TemplateResponse("index.html",{"request":request,'hello':'Hello! Here start your prediction.'})
+    return templates.TemplateResponse("index.html",{"request":request,'hello':'Hello! Here start your detection.'})
 
 # -----------------------------------------------
 #  Predict Page
@@ -30,11 +30,8 @@ from ultralytics.nn.autobackend import AutoBackend
 import base64
 model=YOLO("yolov8n.pt")
 
-@app.post("/detect/",response_class=HTMLResponse)
-async def detect_objects(request:Request,file=Form(...)):
-    image_bytes = await file.read()
-    image = np.frombuffer(image_bytes, dtype=np.uint8)
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+@app.post("/detect/")
+async def detect_objects(image):
 
     def preprocess_letterbox(image):
         letterbox = LetterBox(new_shape=640, stride=32, auto=True)
@@ -172,14 +169,19 @@ async def detect_objects(request:Request,file=Form(...)):
         cv2.rectangle(image, (left - 3, top - 33), (left + w + 10, top), color, -1)
         cv2.putText(image, caption, (left, top - 5), 0, 1, (0, 0, 0), 2, 16)
 
-    cv2.imwrite("infer.jpg", image)
-    print("save done")  
+    # cv2.imwrite("infer.jpg", image)
+    # print("save done")  
 
     # Convert image to base64 string
-    _, image_encoded = cv2.imencode(".jpg", image)
-    image_base64 = base64.b64encode(image_encoded).decode()
+    # _, image_encoded = cv2.imencode(".jpg", image)
+    # image_base64 = base64.b64encode(image_encoded).decode()
 
-    return templates.TemplateResponse("result.html",{"request":request,"image":image_base64})
+    return image
+
+# gradio 界面
+import gradio as gr
+demo=gr.Interface(fn=detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),)
+app=gr.mount_gradio_app(app,demo,path="/gradio")
 
 if __name__=='__main__':
     import uvicorn
