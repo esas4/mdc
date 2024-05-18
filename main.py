@@ -22,7 +22,7 @@ from ultralytics.nn.autobackend import AutoBackend
 
 # 输入是numpy格式，输出也是numpy格式
 # @app.post("/detect/")
-async def detect_objects(image):
+async def yolo_detect_objects(image):
 
     def preprocess_letterbox(image):
         letterbox = LetterBox(new_shape=640, stride=32, auto=True)
@@ -207,10 +207,16 @@ async def dlib_detect_objects(num):
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 
-# gradio 界面 YOLOv8
+# gradio 界面
 import gradio as gr
-demo=gr.Interface(fn=detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
-app=gr.mount_gradio_app(app,demo,path="/")
+
+with gr.Blocks() as demo1:
+    gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
+
+with gr.Blocks() as demo2:
+    gr.Interface(fn=dlib_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with dlib here")
+
+app=gr.mount_gradio_app(app,gr.TabbedInterface([demo1,demo2],["YOLOv8","dlib"]),path="/")
 
 # gradio 界面 dlib
 
