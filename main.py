@@ -10,15 +10,7 @@ app = FastAPI()
 templates=Jinja2Templates(directory="templates")
 
 # -----------------------------------------------
-#  Home Page
-# -----------------------------------------------
-from io import BytesIO
-@app.get('/')
-async def index(request:Request):
-    return templates.TemplateResponse("index.html",{"request":request,'hello':'Hello! Here start your detection.'})
-
-# -----------------------------------------------
-#  Predict Page
+#  Predict Page: Objection detection with YOLOv8
 # -----------------------------------------------
 import numpy as np
 import cv2
@@ -27,10 +19,9 @@ from fastapi import File,UploadFile
 import torch
 from ultralytics.data.augment import LetterBox
 from ultralytics.nn.autobackend import AutoBackend
-import base64
-model=YOLO("yolov8n.pt")
 
-@app.post("/detect/")
+# 输入是numpy格式，输出也是numpy格式
+# @app.post("/detect/")
 async def detect_objects(image):
 
     def preprocess_letterbox(image):
@@ -178,10 +169,51 @@ async def detect_objects(image):
 
     return image
 
-# gradio 界面
+# 输入是摄像头编号
+# dlib摄像头输入流
+async def dlib_detect_objects(num):
+    # 打开摄像头视频流
+    cap = cv2.VideoCapture(num)
+    if not cap.isOpened():    
+        print("无法打开摄像头")    
+        exit()
+    while True:    
+        # 读取视频帧    
+        ret, frame = cap.read()        
+        if not ret:        
+            print("无法接收帧 (stream end?). Exiting ...")        
+            break
+        # 将当前帧转换为灰度图像    
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # 检测物体（例如人脸）    
+        # 加载人脸检测的级联分类器    
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        # 检测人脸    
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        # 在检测到的人脸上绘制矩形框    
+        for (x, y, w, h) in faces:        
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        # 显示带框的帧    
+        cv2.imshow('frame', frame)
+        # 按下 'q' 键退出循环    
+        if cv2.waitKey(1) & 0xFF == ord('q'):        
+            break
+    # 释放摄像头并关闭窗口
+    cap.release()
+    cv2.destroyAllWindows()
+
+    # 检测物体（例如人脸）    
+    # 加载人脸检测的级联分类器    
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+
+# gradio 界面 YOLOv8
 import gradio as gr
-demo=gr.Interface(fn=detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),)
-app=gr.mount_gradio_app(app,demo,path="/gradio")
+demo=gr.Interface(fn=detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
+app=gr.mount_gradio_app(app,demo,path="/")
+
+# gradio 界面 dlib
+
 
 if __name__=='__main__':
     import uvicorn
