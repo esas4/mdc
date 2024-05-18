@@ -177,6 +177,7 @@ async def dlib_detect_objects(num):
     if not cap.isOpened():    
         print("无法打开摄像头")    
         exit()
+    # 实现摄像头的实时读取
     while True:    
         # 读取视频帧    
         ret, frame = cap.read()        
@@ -205,6 +206,7 @@ async def dlib_detect_objects(num):
     # 检测物体（例如人脸）    
     # 加载人脸检测的级联分类器    
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    return ""
 
 
 # gradio 界面
@@ -214,7 +216,8 @@ with gr.Blocks() as demo1:
     gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
 
 with gr.Blocks() as demo2:
-    gr.Interface(fn=dlib_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with dlib here")
+    # gr.Interface(fn=dlib_detect_objects,inputs=gr.Video(source="webcam",capture=True),outputs="empty",live=True,title="Live Webcam", description="Start objection detection with dlib here")
+    gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
 
 app=gr.mount_gradio_app(app,gr.TabbedInterface([demo1,demo2],["YOLOv8","dlib"]),path="/")
 
