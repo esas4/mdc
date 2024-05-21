@@ -169,45 +169,72 @@ async def yolo_detect_objects(image):
 
     return image
 
-# 输入是摄像头编号
-# dlib摄像头输入流
-async def dlib_detect_objects(num):
-    # 打开摄像头视频流
-    cap = cv2.VideoCapture(num)
-    if not cap.isOpened():    
-        print("无法打开摄像头")    
-        exit()
-    # 实现摄像头的实时读取
-    while True:    
-        # 读取视频帧    
-        ret, frame = cap.read()        
-        if not ret:        
-            print("无法接收帧 (stream end?). Exiting ...")        
+import dlib
+from io import BytesIO
+import imageio
+import re
+
+def get_frame(video_frame):
+    # 从视频帧中获取图像
+    image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
+    
+    # 初始化 dlib 的人脸检测器
+    detector = dlib.get_frontal_face_detector()
+
+    # 进行人脸检测
+    dets = detector(image, 1)
+    
+    # 绘制检测到的框
+    for d in dets:
+        cv2.rectangle(image, (d.left(), d.top()), (d.right(), d.bottom()), (255, 0, 0), 2)
+    
+    # 将图像转换回 BGR 格式
+    result_frame = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    
+    return result_frame
+
+
+# 输入是文件路径
+def dlib_detect_objects(video_path):
+
+    print("0*************")
+    print(video_path)
+    print("1*************")
+    if not isinstance(video_path, str):
+        raise ValueError("The video_path parameter should be a string representing the file path.")
+    cap = cv2.VideoCapture(video_path)
+    frames = []
+    print("2*************")
+    tmp=0
+    while cap.isOpened():
+        print(tmp)
+        tmp+=1
+        ret, frame = cap.read()
+        if not ret:
             break
-        # 将当前帧转换为灰度图像    
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # 检测物体（例如人脸）    
-        # 加载人脸检测的级联分类器    
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        # 检测人脸    
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-        # 在检测到的人脸上绘制矩形框    
-        for (x, y, w, h) in faces:        
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-        # 显示带框的帧    
-        cv2.imshow('frame', frame)
-        # 按下 'q' 键退出循环    
-        if cv2.waitKey(1) & 0xFF == ord('q'):        
-            break
-    # 释放摄像头并关闭窗口
+        # 调用人脸检测函数处理每一帧
+        frame = get_frame(frame)
+        frames.append(frame)
+    
     cap.release()
-    cv2.destroyAllWindows()
+    print("3*************")
+    # 编码处理后的帧为视频格式
+    height, width, _ = frames[0].shape
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    print("4*************")
+    out_path = 'output.mp4'
+    out = cv2.VideoWriter(out_path, fourcc, 20.0, (width, height))
+    print("5*************")
+    for frame in frames:
+        out.write(frame)
+    print("6*************")
+    out.release()
+    #TODO: 路径需要修改
+    absolute_path='D:/procedures/mdc/'
+    full_path = os.path.join(absolute_path, out_path)
 
-    # 检测物体（例如人脸）    
-    # 加载人脸检测的级联分类器    
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    return ""
-
+    print(full_path)
+    return full_path
 
 # gradio 界面
 import gradio as gr
@@ -216,12 +243,10 @@ with gr.Blocks() as demo1:
     gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
 
 with gr.Blocks() as demo2:
-    # gr.Interface(fn=dlib_detect_objects,inputs=gr.Video(source="webcam",capture=True),outputs="empty",live=True,title="Live Webcam", description="Start objection detection with dlib here")
-    gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
+    gr.Interface(fn=dlib_detect_objects,inputs=gr.Video(),outputs=gr.Video(),title="Live Webcam", description="Start objection detection with dlib here",allow_flagging='never')
+    # gr.Interface(fn=yolo_detect_objects,inputs=gr.Image(label="Upload the picture"),outputs=gr.Image(),description="Start objection detection with YOLOv8 here")
 
 app=gr.mount_gradio_app(app,gr.TabbedInterface([demo1,demo2],["YOLOv8","dlib"]),path="/")
-
-# gradio 界面 dlib
 
 
 if __name__=='__main__':
